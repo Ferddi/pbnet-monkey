@@ -1,0 +1,4 @@
+
+Strict
+
+Import iservergame
