@@ -24,6 +24,10 @@
 
 #endif
 
+#ifndef socklen_t
+	typedef int socklen_t;
+#endif
+
 #define MAX_CLIENTS		128
 
 class BBTcpServer : public Object {
