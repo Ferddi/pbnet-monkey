@@ -27,7 +27,7 @@ Features
 Getting Started
 ---------------
 
-1. Copy the content of src, pbnet into the Modules directory.
+1. Copy the content of src, that is directory "pbnet/" into the Modules directory.
 2. In the demo directory, build/run pbnetworkingserver.monkey
 3. In the demo directory, build/run pbnetworkingdemo.monkey
 4. Type "connect" at the pbnetworkingdemo prompt.
@@ -51,7 +51,7 @@ Contact me Ferdi on our forums for support.
 
 http://www.monkeycoder.co.nz/Community/_index_.php
 
-Or email me, my email address ist at.
+Or email me, my email address is at.
 
 http://www.monkeycoder.co.nz/Account/showuser.php?id=414
 

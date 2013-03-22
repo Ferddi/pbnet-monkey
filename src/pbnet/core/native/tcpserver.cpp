@@ -164,7 +164,7 @@ bool BBTcpServer::CheckConnection()
 		int new_socket = 0;
 	
 		//if ((new_socket = accept(_master_socket, (struct sockaddr *)&_address, (socklen_t*)&_addrlen))<0)
-		if ((new_socket = accept(_master_socket, (struct sockaddr *)&_address, &_addrlen))<0)
+		if ((new_socket = accept(_master_socket, (struct sockaddr *)&_address, (socklen_t*)&_addrlen))<0)
 		{
 			return false;
 		}
