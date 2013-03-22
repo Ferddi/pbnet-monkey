@@ -60,6 +60,14 @@
 		
 	End
 
+#Else If TARGET="html5"
+
+	#Error "PushButton Networking server is not available on HTML5, because HTML5 can not listen for connection."
+
+#Else If TARGET="flash"
+
+	#Error "PushButton Networking server is not available on Flash, because Flash can not listen for connection."
+
 #Else
 
 	#Error "PushButton Networking is not available on this target."
