@@ -1,0 +1,144 @@
+1. Download Flex SDK 4.5.1
+   URL: http://opensource.adobe.com/wiki/display/flexsdk/Download+Flex+4.5
+   Filename: flex_sdk_4.5.1.21328.zip
+
+2. Download Adobe AIR 
+   URL: http://www.adobe.com/products/air/sdk/
+   Filename: AdobeAIRSDK.zip
+
+3. Unzip both zip files.  
+   "flex_sdk_4.5.1.21328.zip" -> "c:\sdk\flex_sdk_4.5.1.21328"
+   "AdobeAIRSDK.zip" -> "c:\sdk\AdobeAIRSDK"
+
+4. Copy all the content of "c:\sdk\AdobeAIRSDK" into "c:\sdk\flex_sdk_4.5.1.21328"
+
+5. Download and install Flash Develop 3.3.4.
+
+6. Flash Develop -> Tools -> Program Settings -> AS3Context -> Flex SDK LOcation -> "C:\sdk\flex_sdk_4.5.1.21328"
+
+7. Download https://github.com/PushButtonLabs/PushButtonEngine. (master branch - 13 May 2011)
+   And unzip to C:\sdk\pbeng_20110313
+
+8. Download https://github.com/bgarde/PBNetworking_updated (master branch - 3 Jan 2011)
+   And unzip to C:\sdk\pbnet_update
+
+9. Compile ServerGame.swf
+
+* Project -> New Project -> AS3 Project -> ...
+  Name: ServerGame
+  Location: C:\sdk\pbnet_update\demo
+  Create Directory for project is not ticked.
+  Click OK
+  Delete Main.as
+  Right click on ServerGame.as -> Always Compile
+  ServerGame (AS3) -> right click -> properties -> Classpaths
+  Add Classpath... -> C:\sdk\pbnet_update\src
+  Add Classpath... -> C:\sdk\pbeng_20110313\src
+  ServerGame (AS3) -> right click -> properties -> Compiler Options -> Additional Compiler Options -> "-target-player=10.2.0"
+  This creates ServerGame.swf
+  Project -> Close Project
+
+10. Compile PBNetworkDemo.swf
+
+* Go to C:\sdk\pbnet_update\demo\bin
+  Delete directory js, expressInstall.swf, and index.html
+  Project -> New Project -> AS3 Project -> ...
+  Name: PBNetworkDemo
+  Location: C:\sdk\pbnet_update\demo
+  Create Directory for project is not ticked.
+  Click OK
+  Delete Main.as
+  Right click on PBNetworkingDemo.mxml -> Always Compile
+  ServerGame (AS3) -> right click -> properties -> Classpaths
+  Add Classpath... -> C:\sdk\pbnet_update\src
+  Add Classpath... -> C:\sdk\pbeng_20110313\src
+  ServerGame (AS3) -> right click -> properties -> Compiler Options -> Additional Compiler Options -> "-target-player=10.2.0"
+  Move C:\sdk\pbnet_update\demo\src\level.xml to C:\sdk\pbnet_update\demo\bin\level.xml
+  This creates PBNetworkDemo.swf
+  Project -> Close Project
+
+11. Compile PBNetworkServer.swf
+
+* Project -> New Project -> AIR Flex 4 Projector -> ...
+  Name: PBNetworkingServer
+  Location: C:\sdk\pbnet_update\server
+  Create Directory for project is not ticked.
+  Click OK
+  Delete Main.mxml
+  Right click on PBNetworkingServer.mxml -> Always Compile
+  ServerGame (AS3) -> right click -> properties -> Classpaths
+  Add Classpath... -> C:\sdk\pbnet_update\src
+  Add Classpath... -> C:\sdk\pbeng_20110313\src
+  ServerGame (AS3) -> right click -> properties -> Compiler Options -> Additional Compiler Options -> "-target-player=10.2.0"
+
+Change the following lines:
+
+File: PBNetworkingServer-app.xml
+Line: 2
+From: <application xmlns="http://ns.adobe.com/air/application/2.0">
+To: <application xmlns="http://ns.adobe.com/air/application/2.7">
+
+File: application.xml
+Line: 2
+From: <application xmlns="http://ns.adobe.com/air/application/2.0">
+To: <application xmlns="http://ns.adobe.com/air/application/2.7"> 
+
+File: PBNetworkingServer-app.xml
+Line: 28
+From: <version>v1</version>
+To: <versionNumber>1.0</versionNumber>
+    <versionLabel>1.0</versionLabel>
+
+File: application.xml
+Line: 28
+From: <version>v1</version>
+To: <versionNumber>1.0</versionNumber>
+    <versionLabel>1.0</versionLabel>
+
+  Move C:\sdk\pbnet_update\server\src\config.xml to C:\sdk\pbnet_update\server\bin\config.xml
+  Copy C:\sdk\pbnet_update\demo\bin\ServerGame.swf to C:\sdk\pbnet_update\server\bin\ServerGame.swf 
+  Copy C:\sdk\pbnet_update\demo\bin\level.xml to C:\sdk\pbnet_update\server\bin\level.xml
+
+  This creates PBNetworkServer.swf
+
+Note there is a bug in the chat.  Easiest way to explain just type something different twice, you will know what I mean.
+
+If you get the following errors: (it tells you what to do)
+
+1. 
+
+C:\sdk\flex_sdk_4.5.1.21328\frameworks\flex-config.xml(56): Error: unable to open 'libs/player/10.0/playerglobal.swc'
+</external-library-path>
+Build halted with errors (fcsh).
+
+project -> right click -> properties -> Compiler Options -> Additional Compiler Options -> "-target-player=10.2.0"
+
+2.
+
+error while loading initial content
+
+File: PBNetworkingServer-app.xml
+Line: 2
+From: <application xmlns="http://ns.adobe.com/air/application/2.0">
+To: <application xmlns="http://ns.adobe.com/air/application/2.7">
+
+File: application.xml
+Line: 2
+From: <application xmlns="http://ns.adobe.com/air/application/2.0">
+To: <application xmlns="http://ns.adobe.com/air/application/2.7"> 
+
+3.
+
+invalid application descriptor: versionNumber must have a non-empty value.
+
+File: PBNetworkingServer-app.xml
+Line: 28
+From: <version>v1</version>
+To: <versionNumber>1.0</versionNumber>
+    <versionLabel>1.0</versionLabel>
+
+File: application.xml
+Line: 28
+From: <version>v1</version>
+To: <versionNumber>1.0</versionNumber>
+    <versionLabel>1.0</versionLabel>
