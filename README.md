@@ -18,11 +18,12 @@ Features
 
    * Write high performance networked Monkey games fast!
    * Run the same Monkey game code on server and client. 
-   * Encodes messages with bit-level efficiency.
+   * Encodes messages with bit-level efficiency. (TODO Brl.DataBuffer is not talking nicely BitStream.)
    * Communicate with events.
    * Keep simulated objects synchronized with most-recent state updates.
    * Define your networking protocol using simple XML.
-   * Brings the best practices of AAA C++ game networking to Monkey
+   * Brings the best practices of AAA C++ game networking to Monkey (TODO there are for loop in HTML5 and Java =P, can't be good especially these two uses virtual machine)
+   * It is now multiplatform - HTML5 (client only), Flash (client only), GLFW, XNA, iOS, and Android.   
 
 Getting Started
 ---------------
