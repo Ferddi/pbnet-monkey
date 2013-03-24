@@ -7,7 +7,7 @@
 	Import brl.stream
 	#If TARGET="win8"
 		Import "native/tcpsocket.${TARGET}.${LANG}"
-	#If LANG="cpp" Or LANG="java"
+	#Else If LANG="cpp" Or LANG="java"
 		Import "native/tcpsocket.${LANG}"
 	#Else
 		Import "native/tcpsocket.${TARGET}.${LANG}"
