@@ -1,7 +1,8 @@
 PushButton Networking for Monkey
 ================================
 
-Original PushButton Networking: https://github.com/bgarde/PBNetworking 
+Original PushButton Networking: https://github.com/PushButtonLabs/PBNetworking/
+Using PushButton Networking version to port to Monkey: https://github.com/bgarde/PBNetworking 
 
 Overview
 --------
