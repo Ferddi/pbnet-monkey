@@ -1,6 +1,8 @@
 
 Strict
 
+#MOJO_AUTO_SUSPEND_ENABLED=0
+
 #REFLECTION_FILTER="pbnet.elements.*|pbnet.events.*|pbnet.ghosting.*"
 Import reflection
 
