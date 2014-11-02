@@ -22,12 +22,11 @@ End Function
 
 ' SimpleInput from Angelfont Banana by Beaker.
 Class SimpleInput
+
 	Private
 	Global count:Int = 0
-	
 	Field cursorPos:Int = 0
 
-	
 	Public
 	Const cursorWidth:Int = 2
 	
@@ -179,7 +178,7 @@ Class PBNetworkingDemo Extends App
 	Field fps:Float = 0
 
 	Method OnCreate:Int()
-	
+
 		connectScreen = New ConnectScreen
 		demoScreen = New DemoScreen
 		
@@ -196,7 +195,7 @@ Class PBNetworkingDemo Extends App
 		Return 0
 	
 	End Method
-	
+
 	Method OnUpdate:Int()
 	
 		updateCount += 1
@@ -212,9 +211,11 @@ Class PBNetworkingDemo Extends App
 		'Print Millisecs() + ". OnUpdate"
 
 		If KeyHit(KEY_CLOSE) Then Error ""
+		
+		UpdateAsyncEvents()
 
 		currentScreen.OnUpdate()
-		
+
 		Return 0
 	
 	End Method
@@ -427,6 +428,8 @@ Class DemoGhostFactory Extends TemplateGhostFactory
 
 	Method MakeGhost:Ghost(prototypeName:String, nr:NetRoot)
 	
+		'Print "MakeGhost is called."
+	
 		If prototypeName = "ClientCircle" Then
 
 			Local entity:CircleEntity = New CircleEntity(nr)
@@ -512,9 +515,9 @@ Class DemoScreen Implements Screen
 	' Stuff to do while running...
 	Method OnUpdate:Int()
 
-		If connection.HasPendingData() = True Then
-			connection.ReadPackets()
-		End If
+'		If connection.HasDataPending() = True Then
+'			connection.ReadPackets()
+'		End If
 
 		For Local cc:CircleEntity = Eachin circleList
 
@@ -625,6 +628,7 @@ Class DemoScreen Implements Screen
 		SetAlpha(0.5)
 
 		SetColor(0,255,0)
+		'Print "cicleList.Count = " + circleList.Count()
 		For Local cc:CircleEntity = Eachin circleList
 			DrawCircle(cc.x, cc.y, 33)
 		End For
@@ -771,14 +775,14 @@ Class DemoScreen Implements Screen
 
 		netInt = New NetworkInterface()
 		netDbg = New NetworkDebugVisualizer()
-
+		
 		connection = New GhostConnection()
 		connection.SetNetEvent(netEvent)
 		connection.SetNetworkInterface(netInt)
 		connection.SetNetworkDebugVisualizer(netDbg)
 		connection.ConnectToServer(host, port)
 		connection.ActivateGhosting(netRoot, New DemoGhostFactory(Self))
-         
+
 		username = inUsername;
 
 	End Method

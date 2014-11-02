@@ -1,4 +1,6 @@
 
+Strict
+
 #MOJO_AUTO_SUSPEND_ENABLED=0
 
 #REFLECTION_FILTER="pbnet.elements.*|pbnet.events.*|pbnet.ghosting.*"
@@ -6,16 +8,46 @@ Import reflection
 
 Import mojo
 Import pbnet
-Import pbnet.core.tcpserver
+'Import pbnet.core.tcpserver
+Import brl.socket
 Import servergame
+
+Global pbnetServer:PBNetworkingServer
 
 Function Main:Int()
 
-	New PBNetworkingServer
+	pbnetServer = New PBNetworkingServer
 
 	Return 0
 
 End Function
+
+Class TcpServer Implements IOnAcceptComplete
+
+	Method New(port:Int)
+
+		_socket = New Socket("server")
+
+		If Not _socket.Bind("", port) Then
+			Error "Bind failed"
+		End If
+
+		_socket.AcceptAsync(Self)
+
+	End Method
+	
+	Private
+	
+	Field _socket:Socket
+
+	Method OnAcceptComplete:Void( socket:Socket, source:Socket )
+		If Not socket Error "Accept error"
+		pbnetServer.messageStr.AddLast("serverGame.OnConnection(tcpSocket)")
+		pbnetServer.serverGame.OnConnection(socket)
+		_socket.AcceptAsync( Self )
+	End Method
+	
+End Class
 
 Class PBNetworkingServer Extends App
 
@@ -57,12 +89,13 @@ Class PBNetworkingServer Extends App
 	Field onMoveGhostsTime:Int = 0
 	Field onTickTime:Int = 0
 	
-	Field tcpSocketFerdi:TcpSocket = Null
+'	Field tcpSocketFerdi:TcpSocket = Null
+	Field _socket:Socket
 
 	' Stuff to do while running...
 	Method OnUpdate:Int()
 
-		'DebugStop()
+		UpdateAsyncEvents()
 		
 		If KeyHit(KEY_CLOSE) Then Error ""
 		
@@ -72,21 +105,15 @@ Class PBNetworkingServer Extends App
 
 		End While
 
-		Local tcpSocket:TcpSocket = tcpServer.CheckConnection()
-
-		If tcpSocket <> Null Then
-
-			'DebugStop()
-
-			messageStr.AddLast("serverGame.OnConnection(tcpSocket)")
-		
-			serverGame.OnConnection(tcpSocket)
-			
-			tcpSocketFerdi = tcpSocket
-		
-		End If
+'		Local tcpSocket:TcpSocket = tcpServer.CheckConnection()
+'		If tcpSocket <> Null Then
+'			'DebugStop()
+'			messageStr.AddLast("serverGame.OnConnection(tcpSocket)")
+'			serverGame.OnConnection(tcpSocket)
+'			tcpSocketFerdi = tcpSocket
+'		End If
 				
-		netInt.Read()
+'		netInt.Read()
 		
 		If (Millisecs() - onMoveGhostsTime) > 1000 Then
 		
@@ -207,6 +234,19 @@ Class PBNetworkingServer Extends App
 		Return 0
 
 	End Method
+	
+	Method OnConnectComplete:Void( connected:Bool,source:Socket )
+		If Not connected Error "Error connecting"
+		'SendMore
+	End Method
+	
+	Method OnSendComplete:Void( data:DataBuffer,offset:Int,count:Int,source:Socket )
+		_socket.ReceiveAsync(_data,0,_data.Length,Self)
+	End Method
+
+	Method OnReceiveComplete:Void( data:DataBuffer,offset:Int,count:Int,source:Socket )
+		Print "Received response:" + data.PeekString( offset,count )
+	End Method
 
 	'------------------------------------------------------------------------------------------------
 
@@ -220,7 +260,8 @@ Class PBNetworkingServer Extends App
 	'Field configLoader:URLLoader
 	'Field swfLoader:Loader
 
-	Field tcpServer:TcpServer
+'	Field tcpServer:TcpServer
+	Field _server:TcpServer
 	Field serverGame:ServerGame
 
 	Method OnInvoke:Void()
@@ -366,8 +407,10 @@ Class PBNetworkingServer Extends App
             
 	Method InitializeSocket:Void()
 	
-		tcpServer = New TcpServer()
-		tcpServer.SetupListen(port)
+'		tcpServer = New TcpServer()
+'		tcpServer.SetupListen(port)
+
+		_server = New TcpServer(port)
 
 		' Setup the server socket
 		'serverSocket = New ServerSocket();

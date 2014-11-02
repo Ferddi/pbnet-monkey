@@ -2,9 +2,100 @@
 Strict
 
 Import pbnet
-Import tcpsocket
+Import brl.socket
 Import sha1
 Import diddy.base64
+
+Class TcpSocket Implements IOnConnectComplete, IOnSendComplete, IOnReceiveComplete
+
+	Field _socket:Socket ' Using brl.socket asynchronous.
+	Field _netCon:NetworkConnection
+	Field _data:DataBuffer
+	
+	Const INIT:Int = 0
+	Const CONNECTED:Int = 1
+	Const CLOSED:Int = 2
+	
+	Field _state:Int
+
+	Method New(nc:NetworkConnection, s:Socket = Null)
+	
+		_data = New DataBuffer(1024)
+		_socket = s
+		_netCon = nc
+
+		If _socket = Null Then 
+			_state = INIT
+		Else
+			_state = CONNECTED
+		End If
+
+	End Method
+	
+	Method Receive:Void()
+	
+		If _state = CONNECTED Then 
+			_socket.ReceiveAsync(_data, 0, _data.Length, Self)
+		End If
+
+	End Method
+	
+	Method Send:Void(db:DataBuffer, offset:Int, count:Int)
+	
+		If _state = CONNECTED Then
+			_socket.SendAsync(db, offset, count, Self)
+		End If
+	
+	End Method
+
+	Method Connect:Void(host:String, port:Int)
+
+		_socket = New Socket("stream")
+		_socket.ConnectAsync(host, port, Self)
+		_state = CONNECTED
+
+	End Method
+	
+	Method OnConnectComplete:Void(connected:Bool, source:Socket)
+
+		Print "OnConnectComplete"
+
+		If Not connected Error "Client has error connecting."
+
+		' Start to receive the messages a synchronously.
+		Receive()
+
+	End Method
+	
+	Method OnSendComplete:Void(data:DataBuffer, offset:Int, count:Int, source:Socket)
+
+		Print "OnSendComplete count = " + count
+		
+		If count < 0 Then
+			_state = CLOSED
+		End If
+
+		'_socket.ReceiveAsync _data,0,_data.Length,Self
+
+	End Method
+
+	Method OnReceiveComplete:Void(data:DataBuffer, offset:Int, count:Int, source:Socket)
+
+		Print "OnReceiveComplete count = " + count
+
+		If count < 0 Then 
+			_state = CLOSED
+		End If
+
+		'Print "Received response:"+data.PeekString( offset,count )
+		_netCon.ReadPackets(data, offset, count)
+	
+		' We complete that message, look for another message, and another, and another ...
+		Receive()
+
+	End Method
+
+End Class
 
 ' Basic network connection which can send And receive fixed size "packets"
 ' over a TCP Socket. We refer To "packets" because If we ever support UDP
@@ -64,27 +155,16 @@ Class NetworkConnection
 	Method Tick:Void()
 
 		' For now, just send a packet every network tick (about 10hz).
-		SendPacket()
-
-	End Method
-	
-	Method HasPendingData:Bool()
-
-		'Print "tcpSocket.ReadAvail(): " + tcpSocket.ReadAvail()
-
-		If tcpSocket.ReadAvail() > 0 Then
-		
-			Return True
-			
-		End If
-		
-		Return False
+		'If tcpSocket._state = TcpSocket.CONNECTED Then 
+		'TODO need to remove connection!!!
+			SendPacket()
+		'End If
 
 	End Method
 
 	' Associate this connection with a socket that's been opened to us.
 	' Called by the server, And only called once on a connection.
-	Method AcceptClientConnection:Void(s:TcpSocket, host:String, port:Int)
+	Method AcceptClientConnection:Void(s:Socket, host:String, port:Int)
 
 		If netInt = Null Then
 			Print "Error: NetworkInterface is null.  Please use NetworkConnection.SetNetworkInterface to specify the NetworkInterface."
@@ -99,8 +179,10 @@ Class NetworkConnection
 		_port = port;
 
 		' Set up the socket.
-		tcpSocket = s;
-		ConfigureListeners();
+		tcpSocket = New TcpSocket(Self, s)
+		tcpSocket.Receive()
+
+		ConfigureListeners()
 
 	End Method
       
@@ -117,14 +199,18 @@ Class NetworkConnection
 
 		' Create & connect with a socket.
 		'Print "Trying to connect TCP Socket ..."
-		tcpSocket = New TcpSocket()
-		If tcpSocket.Connect(host, port) = True Then
-			Print "TCP Socket is connected!"
-		End If
+		'tcpSocket = New TcpSocket()
+		'If tcpSocket.Connect(host, port) = True Then
+		'	Print "TCP Socket is connected!"
+		'End If
+
+		tcpSocket = New TcpSocket(Self)
+		tcpSocket.Connect(host, port)
 		
 		'socket = New Socket(host, port);
 		_host = host
 		_port = port
+
 		ConfigureListeners()
 
 	End Method
@@ -132,7 +218,14 @@ Class NetworkConnection
 	' Returns True when there is data To send.
 	Method HasDataPending:Bool()
 
-         Return False
+		'Print "tcpSocket.ReadAvail(): " + tcpSocket.ReadAvail()
+		Print "PROBLEM: HasDataPending Method is called!"
+
+'		If tcpSocket.ReadAvail() > 0 Then
+'			Return True			
+'		End If
+
+        Return False
 
 	End Method
 
@@ -158,7 +251,8 @@ Class NetworkConnection
 	Method SendPacket:Void()
 
 		'If Not socket.connected
-		If firstResponse = False And tcpSocket.State() <> 1 Then
+'		If firstResponse = False And tcpSocket.State() <> 1 Then
+		If firstResponse = False And tcpSocket._socket.IsConnected() = False Then
 
 			' Just wait If we never were connected.
 			If Not _wasConnected
@@ -263,7 +357,8 @@ Class NetworkConnection
 	
 			Local dataBuffer:DataBuffer = New DataBuffer(headerLen + PACKETSIZE + LENGTHFIELDSIZE)
 			dataBuffer.PokeBytes(0, ba, 0, headerLen + PACKETSIZE + LENGTHFIELDSIZE)
-			tcpSocket.Write(dataBuffer, 0, headerLen + PACKETSIZE + LENGTHFIELDSIZE)
+			tcpSocket.Send(dataBuffer, 0, headerLen + PACKETSIZE + LENGTHFIELDSIZE)
+			'tcpSocket._socket.SendAsync(dataBuffer, 0, headerLen + PACKETSIZE + LENGTHFIELDSIZE, tcpSocket)
 
 		Else
 		
@@ -288,7 +383,8 @@ Class NetworkConnection
 			Local dataBuffer:DataBuffer = New DataBuffer(PACKETSIZE + LENGTHFIELDSIZE)
 			dataBuffer.PokeBytes(0, ba, 0, PACKETSIZE + LENGTHFIELDSIZE)
 			'Print Millisecs() + ". NetworkConnection.tcpSocket.Write Start"
-			tcpSocket.Write(dataBuffer, 0, PACKETSIZE + LENGTHFIELDSIZE)
+			tcpSocket.Send(dataBuffer, 0, PACKETSIZE + LENGTHFIELDSIZE)
+			'tcpSocket._socket.SendAsync(dataBuffer, 0, PACKETSIZE + LENGTHFIELDSIZE, tcpSocket)
 			'Print Millisecs() + ". NetworkConnection.tcpSocket.Write Stop"
 			'socket.writeBytes(ba, 0, PACKETSIZE + LENGTHFIELDSIZE);
 			'socket.flush();
@@ -329,10 +425,63 @@ Class NetworkConnection
 		End While
 
 	End Method
-      
+
+	' TODO ReadBegin, ReadAvail, ReadByte, and ReadString are for ReadPackets, so it is more readable.
+
+	Field readStart:Int = 0
+	Field readCount:Int = 0
+
+	Method ReadBegin:Void(c:Int)
+	
+		readStart = 0
+		readCount = c
+		
+	End Method
+	
+	Method ReadAvail:Int()
+
+		Return readCount
+
+	End Method
+	
+	Method ReadByte:Int(db:DataBuffer)
+	
+		Local result:Int = db.PeekByte(readStart)
+
+		readStart += 1
+		readCount -= 1
+
+		Return result
+
+	End Method
+	
+	Method ReadString:String(db:DataBuffer)
+
+		Local result:String = db.PeekString(readStart)
+
+		readStart += readCount
+		readCount = 0
+
+		Return result
+
+	End Method
+	
+	Method ReadBytes:Int[](db:DataBuffer, length:Int)
+	
+		Local bytes:Int[] = db.PeekBytes(readStart, length)
+
+		readStart += length
+		readCount -= length
+		
+		Return bytes
+
+	End Method
+
 	' Look For one Or more packets buffered in the socket, parse And process
 	' them.
-	Method ReadPackets:Void()
+	Method ReadPackets:Void(dataBuffer:DataBuffer, offset:Int, count:Int)
+
+		ReadBegin(count)
 
 		' We are looking For a specific scenario here - If there are say 16
 		' bytes available And it's the first response, then it's probably
@@ -348,25 +497,31 @@ Class NetworkConnection
 		'Print "Bytes Available = " + tcpStream.ReadAvail()
 		'Print "Bytes Available = " + tcpStream.ReadAvail()
 		'Print "Bytes Available = " + tcpSocket.ReadAvail()
-		Local dataBuffer:DataBuffer = New DataBuffer(tcpSocket.ReadAvail())
+'		Local dataBuffer:DataBuffer = New DataBuffer(tcpSocket.ReadAvail())
 
-		If firstResponse And tcpSocket.ReadAvail() > 10
+		'Print "Bytes Available = " + count
+
+'		If firstResponse And tcpSocket.ReadAvail() > 10
+		If firstResponse And ReadAvail() > 10
 		
 			'DebugStop()
 
 			firstResponse = False
 
-			tcpSocket.Read(dataBuffer, 0, 2)
+			'tcpSocket.Read(dataBuffer, 0, 2)
+			Local byte1:Int = ReadByte(dataBuffer)
+			Local byte2:Int = ReadByte(dataBuffer)
 			
 			' Need to look whether the client it HTML5 or not.  HTML client will send
 			' a HTTP header, "GET / HTTP/1.1", hence $47 and $45 for GE
-			If dataBuffer.PeekByte(0) = $47 And dataBuffer.PeekByte(1) = $45 Then
-						
+			'If dataBuffer.PeekByte(start + 0) = $47 And dataBuffer.PeekByte(start + 1) = $45 Then
+			If byte1 = $47 And byte2 = $45 Then
+					
 				'DebugStop()
 								
-				tcpSocket.Read(dataBuffer, 0, tcpSocket.ReadAvail())
+				'tcpSocket.Read(dataBuffer, 0, tcpSocket.ReadAvail())
 
-				Local httpHeader:String = "GE" + dataBuffer.PeekString(0)
+				Local httpHeader:String = "GE" + ReadString(dataBuffer)
 				Local httpHeaderChar:Int[] = httpHeader.ToChars()
 				Local headerLines:String[] = httpHeader.Split("~n")
 				Local acceptKey:String = ""
@@ -429,26 +584,29 @@ Class NetworkConnection
 					Local db:DataBuffer = New DataBuffer(upgrade.Length())
 					
 					db.PokeBytes(0, upgrade.ToChars(), 0, upgrade.Length())
-					tcpSocket.Write(db, 0, upgrade.Length())
+					'tcpSocket.Write(db, 0, upgrade.Length())
+					tcpSocket.Send(db, 0, upgrade.Length())
+					'tcpSocket._socket.SendAsync(db, 0, upgrade.Length(), tcpSocket)
 					
 					isClientHtml5WebSocket = True
 
 				End If
 				
 				Return
-							
+
 			Else 
 			
-				firstDataLen = dataBuffer.PeekByte(0) * 256 + dataBuffer.PeekByte(1)
-				Print "First len was " + firstDataLen + " with " + tcpSocket.ReadAvail() + " bytes available."
+				'firstDataLen = dataBuffer.PeekByte(start + 0) * 256 + dataBuffer.PeekByte(start + 1)
+				firstDataLen = byte1 * 256 + byte2
+				Print "First len was " + firstDataLen + " with " + count + " bytes available."
 	
 				' If the length is equal To '<p' then it is a policy request. 
-				If firstDataLen = 15472
+				If firstDataLen = 15472 Then
 	
 					Print "sending cross-domain-policy XML response."
 					
-					tcpSocket.Read(dataBuffer, 0, tcpSocket.ReadAvail())
-					Local policyRequest:String = "<p" + dataBuffer.PeekString(0)
+					'tcpSocket.Read(dataBuffer, 0, tcpSocket.ReadAvail())
+					Local policyRequest:String = "<p" + ReadString(dataBuffer)
 					Print "Policy Request: " + policyRequest
 					Print " "
 					
@@ -462,7 +620,9 @@ Class NetworkConnection
 					Local db:DataBuffer = New DataBuffer(xmlResponse.Length())
 					
 					db.PokeString(0, xmlResponse)
-					tcpSocket.Write(db, 0, db.Length())
+					'tcpSocket.Write(db, 0, db.Length())
+					tcpSocket.Send(db, 0, db.Length())
+					'tcpSocket._socket.SendAsync(db, 0, db.Length(), tcpSocket)
 	                
 	                'socket.writeUTFBytes("<?xml version=~q1.0~q?>" + 
 	                '"<!DOCTYPE cross-domain-policy SYSTEM ~q/xml/dtds/cross-domain-policy.dtd~q>"+
@@ -471,7 +631,7 @@ Class NetworkConnection
 	                '"</cross-domain-policy>")
 	
 	                'socket.flush();
-	
+	                
 	                Return
 	
 				End If
@@ -479,12 +639,13 @@ Class NetworkConnection
 			End If
 
 		End If
-          
+
 		' Ok, go into our normal parse loop.
-		While tcpSocket.ReadAvail() >= PACKETSIZE + LENGTHFIELDSIZE Or firstDataLen <> -1
+		' While tcpSocket.ReadAvail() >= PACKETSIZE + LENGTHFIELDSIZE Or firstDataLen <> -1
+		While ReadAvail() >= PACKETSIZE + LENGTHFIELDSIZE Or firstDataLen <> -1
 
 			If isClientHtml5WebSocket = True Then
-		
+
 				' Reuse the original read If we made one, otherwise it's -1 and
 				' we read it ourselves.
 				Local length:Int = firstDataLen
@@ -492,10 +653,12 @@ Class NetworkConnection
 				If length = -1 Then
 					' FIN (1-bit), 3 Reserved Bits, 4-bits opcode, 1-bit mask, 7-bits payload length
 					' 1 + 3 + 4 + 1 + 7 = 16-bits / 8 = 2 bytes
-					tcpSocket.Read(dataBuffer, 0, 2)				
+					'tcpSocket.Read(dataBuffer, 0, 2)				
 					' The mask bit is always 1 at position $80, so zero it with $7F
 					' Then we know the length of the message
-					length = dataBuffer.PeekByte(1) & $7F
+					'length = dataBuffer.PeekByte(1) & $7F
+					ReadByte(dataBuffer)	' We don't care about this byte.
+					length = ReadByte(dataBuffer) & $7F
 				Else
 					Print "Suppressing readShort"
 				End If
@@ -505,46 +668,67 @@ Class NetworkConnection
 
 				If length = 126 Then
 
-					tcpSocket.Read(dataBuffer, 0, 2)	' 16-bits extended payload length
+					'tcpSocket.Read(dataBuffer, 0, 2)	' 16-bits extended payload length
+					ReadByte(dataBuffer)
+					ReadByte(dataBuffer)
 
 				Else If length = 127 Then
 
-					tcpSocket.Read(dataBuffer, 0, 8)	' 64-bits extended payload length
+					'tcpSocket.Read(dataBuffer, 0, 8)	' 64-bits extended payload length
+					ReadByte(dataBuffer)
+					ReadByte(dataBuffer)
+					ReadByte(dataBuffer)
+					ReadByte(dataBuffer)
+					ReadByte(dataBuffer)
+					ReadByte(dataBuffer)
+					ReadByte(dataBuffer)
+					ReadByte(dataBuffer)
 
 				End If
 
-				tcpSocket.Read(dataBuffer, 0, 4)	' 32-bits Masking-key
+				'tcpSocket.Read(dataBuffer, 0, 4)	' 32-bits Masking-key
 				Local masks:Int[4]
-				masks[0] = dataBuffer.PeekByte(0)
-				masks[1] = dataBuffer.PeekByte(1)
-				masks[2] = dataBuffer.PeekByte(2)
-				masks[3] = dataBuffer.PeekByte(3)
-
-				tcpSocket.Read(dataBuffer, 0, PACKETSIZE + LENGTHFIELDSIZE)
-
-				Local chars:Int[PACKETSIZE + LENGTHFIELDSIZE]
+				masks[0] = ReadByte(dataBuffer)
+				masks[1] = ReadByte(dataBuffer)
+				masks[2] = ReadByte(dataBuffer)
+				masks[3] = ReadByte(dataBuffer)
 				
+				Local byte1:Int = ReadByte(dataBuffer)
+				Local byte2:Int = ReadByte(dataBuffer)
+
+				'tcpSocket.Read(dataBuffer, 0, PACKETSIZE + LENGTHFIELDSIZE)
+				Local chars:Int[] = ReadBytes(dataBuffer, PACKETSIZE + LENGTHFIELDSIZE)
+
 				For Local i:Int = 0 Until (PACKETSIZE + LENGTHFIELDSIZE)
 				
-					Local peek:Int = dataBuffer.PeekByte(i)
+					'Local peek:Int = dataBuffer.PeekByte(readStart + i)
+					Local peek:Int = chars[i]
 					Local poke:Int = peek ~ masks[(i & 3)]
 					chars[i] = poke
-					dataBuffer.PokeByte(i, poke)
+					'dataBuffer.PokeByte(readStart + i, poke)
 
 				End For
 				
 				'Print String.FromChars(chars)
 				
-				Local dataLen:Int = (dataBuffer.PeekByte(0) Shl 8) + dataBuffer.PeekByte(1)
-			
+				'Local dataLen:Int = (dataBuffer.PeekByte(readStart + 0) Shl 8) + dataBuffer.PeekByte(readStart + 1)
+				Local dataLen:Int = (chars[0] Shl 8) + chars[1]
+
 				If dataLen Then
 	
+					Local bytes:Int[PACKETSIZE]
+					For Local i:Int = 0 Until PACKETSIZE
+						bytes[i] = chars[i + 2]
+					End For
+
 					If netDbg
-						netDbg.ReportIncomingTraffic(dataBuffer.PeekBytes(LENGTHFIELDSIZE));
+						'netDbg.ReportIncomingTraffic(dataBuffer.PeekBytes(readStart + LENGTHFIELDSIZE));
+						netDbg.ReportIncomingTraffic(bytes);
 					End If
 	
 					'Print "Got " + dataLen + " bytes of real data."
-	                Local bs:BitStream = New BitStream(dataBuffer.PeekBytes(LENGTHFIELDSIZE));
+	                'Local bs:BitStream = New BitStream(dataBuffer.PeekBytes(readStart + LENGTHFIELDSIZE));
+	                Local bs:BitStream = New BitStream(bytes);
 	                ReadPacket(bs);
 	
 				End If
@@ -556,8 +740,8 @@ Class NetworkConnection
 				Local dataLen:Int = firstDataLen
 
 				If dataLen = -1
-					tcpSocket.Read(dataBuffer, 0, 2);
-					dataLen = dataBuffer.PeekByte(0) * 256 + dataBuffer.PeekByte(1)
+					'tcpSocket.Read(dataBuffer, 0, 2);
+					dataLen = ReadByte(dataBuffer) * 256 + ReadByte(dataBuffer)
 					'dataLen = tcpSocket.ReadByte() * 256 + tcpSocket.ReadByte()
 				Else
 					Print "Suppressing readShort"
@@ -566,7 +750,7 @@ Class NetworkConnection
 				' All subsequent reads are done properly.
 				firstDataLen = -1
 	             
-				tcpSocket.Read(dataBuffer, 0, PACKETSIZE)
+				'tcpSocket.Read(dataBuffer, 0, PACKETSIZE)
 				'Print "dataLen: " + dataLen
 				'Print "data: " + dataBuffer.PeekString(0)
 				'Print "Now ReadAvail is: " + tcpSocket.ReadAvail()
@@ -578,13 +762,15 @@ Class NetworkConnection
 				'Print "dataBuffer: " + dataBufferStr
 
 				If dataLen Then
+				
+					Local chars:Int[] = ReadBytes(dataBuffer, PACKETSIZE)
 	
 					If netDbg
-						netDbg.ReportIncomingTraffic(dataBuffer.PeekBytes(0));
+						netDbg.ReportIncomingTraffic(chars);
 					End If
 	
-					'Print "Got " + dataLen + " bytes of real data."
-	                Local bs:BitStream = New BitStream(dataBuffer.PeekBytes(0));
+					Print "Got " + dataLen + " bytes of real data."
+	                Local bs:BitStream = New BitStream(chars);
 	                ReadPacket(bs);
 	
 				End If

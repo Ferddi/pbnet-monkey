@@ -2,7 +2,7 @@
 Strict
 
 Import pbnet
-Import tcpsocket
+Import brl.socket
 
 ' Tracks active network connections. This mostly operates behind
 ' the scenes; your code probably wants To use NetworkConnection (which will
@@ -80,12 +80,12 @@ Class NetworkInterface
 	Method Read:Void()
 	
 		' Read a packet on every connection.
-		For Local nc:NetworkConnection = Eachin connections
- 			If nc.HasPendingData() = True Then
- 				'DebugStop()
-				nc.ReadPackets()
-			End If
-		End For
+'		For Local nc:NetworkConnection = Eachin connections
+' 			If nc.HasPendingData() = True Then
+' 				'DebugStop()
+'				nc.ReadPackets()
+'			End If
+'		End For
 
 	End Method
       

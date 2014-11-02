@@ -230,7 +230,7 @@ Class ServerGame Implements IServerGame, IScoper
 	End Method
 
 	' Called by the server binary when a connection comes in.
-	Method OnConnection:Void(ts:TcpSocket)
+	Method OnConnection:Void(s:Socket)
 
 		'DebugStop()
 
@@ -241,7 +241,7 @@ Class ServerGame Implements IServerGame, IScoper
 		ec.SetNetworkDebugVisualizer(netDbg)
 		ec.ActivateGhosting(netRoot, Null, True)
 		ec.ScopeObject(Self)
-		ec.AcceptClientConnection(ts, "", port)
+		ec.AcceptClientConnection(s, "", port)
 
 		' Send a welcome message.
 		'ec.PostEvent(New ServerChatEvent(netRoot, "Welcome to Circle Click: Multiplayer Edition!"))
